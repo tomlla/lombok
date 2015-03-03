@@ -27,28 +27,30 @@ import java.util.List;
 
 import lombok.core.configuration.ConfigurationSource.ListModification;
 import lombok.core.configuration.ConfigurationSource.Result;
+import lombok.core.debug.FileLog;
 
 public class BubblingConfigurationResolver implements ConfigurationResolver {
 	
 	private final Iterable<ConfigurationSource> sources;
 	
-	public BubblingConfigurationResolver(Iterable<ConfigurationSource> sources) {
+	public BubblingConfigurationResolver(final Iterable<ConfigurationSource> sources) {
 		this.sources = sources;
 	}
 	
-	@SuppressWarnings("unchecked")
-	@Override
-	public <T> T resolve(ConfigurationKey<T> key) {
-		boolean isList = key.getType().isList();
+	@SuppressWarnings("unchecked") @Override public <T> T resolve(final ConfigurationKey<T> key) {
+		final boolean isList = key.getType().isList();
 		List<List<ListModification>> listModificationsList = null;
-		for (ConfigurationSource source : sources) {
-			Result result = source.resolve(key);
+		for (final ConfigurationSource source : sources) {
+			final Result result = source.resolve(key);
+			if (result == null) {
+				FileLog.log("source.resolve(key) result is Null");
+			}
 			if (result == null) continue;
 			if (isList) {
 				if (listModificationsList == null) {
 					listModificationsList = new ArrayList<List<ListModification>>();
 				}
-				listModificationsList.add((List<ListModification>)result.getValue());
+				listModificationsList.add((List<ListModification>) result.getValue());
 			}
 			if (result.isAuthoritative()) {
 				if (isList) {
@@ -63,10 +65,10 @@ public class BubblingConfigurationResolver implements ConfigurationResolver {
 		if (listModificationsList == null) {
 			return (T) Collections.emptyList();
 		}
-		List<Object> listValues = new ArrayList<Object>();
+		final List<Object> listValues = new ArrayList<Object>();
 		Collections.reverse(listModificationsList);
-		for (List<ListModification> listModifications : listModificationsList) {
-			if (listModifications != null) for (ListModification modification : listModifications) {
+		for (final List<ListModification> listModifications : listModificationsList) {
+			if (listModifications != null) for (final ListModification modification : listModifications) {
 				listValues.remove(modification.getValue());
 				if (modification.isAdded()) {
 					listValues.add(modification.getValue());
