@@ -34,15 +34,14 @@ import java.util.Map;
 
 import lombok.AccessLevel;
 import lombok.ConfigurationKeys;
+import lombok.experimental.Delegate;
 import lombok.Getter;
 import lombok.core.AST.Kind;
 import lombok.core.AnnotationValues;
-import lombok.core.debug.FileLog;
 import lombok.eclipse.EclipseAnnotationHandler;
 import lombok.eclipse.EclipseNode;
 import lombok.eclipse.agent.PatchDelegate;
 import lombok.eclipse.handlers.EclipseHandlerUtil.FieldAccess;
-import lombok.experimental.Delegate;
 
 import org.eclipse.jdt.internal.compiler.ast.ASTNode;
 import org.eclipse.jdt.internal.compiler.ast.AllocationExpression;
@@ -77,36 +76,38 @@ import org.mangosdk.spi.ProviderFor;
 /**
  * Handles the {@code lombok.Getter} annotation for eclipse.
  */
-@ProviderFor(EclipseAnnotationHandler.class) public class HandleGetter extends EclipseAnnotationHandler<Getter> {
+@ProviderFor(EclipseAnnotationHandler.class)
+public class HandleGetter extends EclipseAnnotationHandler<Getter> {
 	private static final Annotation[] EMPTY_ANNOTATIONS_ARRAY = new Annotation[0];
-	
-	public boolean generateGetterForType(final EclipseNode typeNode, final EclipseNode pos, final AccessLevel level, final boolean checkForTypeLevelGetter) {
+
+	public boolean generateGetterForType(EclipseNode typeNode, EclipseNode pos, AccessLevel level, boolean checkForTypeLevelGetter) {
 		if (checkForTypeLevelGetter) {
 			if (hasAnnotation(Getter.class, typeNode)) {
-				// The annotation will make it happen, so we can skip it.
+				//The annotation will make it happen, so we can skip it.
 				return true;
 			}
 		}
 		
 		TypeDeclaration typeDecl = null;
 		if (typeNode.get() instanceof TypeDeclaration) typeDecl = (TypeDeclaration) typeNode.get();
-		final int modifiers = typeDecl == null ? 0 : typeDecl.modifiers;
-		final boolean notAClass = (modifiers & (ClassFileConstants.AccInterface | ClassFileConstants.AccAnnotation)) != 0;
+		int modifiers = typeDecl == null ? 0 : typeDecl.modifiers;
+		boolean notAClass = (modifiers &
+				(ClassFileConstants.AccInterface | ClassFileConstants.AccAnnotation)) != 0;
 		
 		if (typeDecl == null || notAClass) {
 			pos.addError("@Getter is only supported on a class, an enum, or a field.");
 			return false;
 		}
 		
-		for (final EclipseNode field : typeNode.down()) {
+		for (EclipseNode field : typeNode.down()) {
 			if (fieldQualifiesForGetterGeneration(field)) generateGetterForField(field, pos.get(), level, false);
 		}
 		return true;
 	}
 	
-	public boolean fieldQualifiesForGetterGeneration(final EclipseNode field) {
+	public boolean fieldQualifiesForGetterGeneration(EclipseNode field) {
 		if (field.getKind() != Kind.FIELD) return false;
-		final FieldDeclaration fieldDecl = (FieldDeclaration) field.get();
+		FieldDeclaration fieldDecl = (FieldDeclaration) field.get();
 		return filterField(fieldDecl);
 	}
 	
@@ -117,28 +118,27 @@ import org.mangosdk.spi.ProviderFor;
 	 * 
 	 * The difference between this call and the handle method is as follows:
 	 * 
-	 * If there is a {@code lombok.Getter} annotation on the field, it is used
-	 * and the same rules apply (e.g. warning if the method already exists,
-	 * stated access level applies). If not, the getter is still generated if it
-	 * isn't already there, though there will not be a warning if its already
-	 * there. The default access level is used.
+	 * If there is a {@code lombok.Getter} annotation on the field, it is used and the
+	 * same rules apply (e.g. warning if the method already exists, stated access level applies).
+	 * If not, the getter is still generated if it isn't already there, though there will not
+	 * be a warning if its already there. The default access level is used.
 	 */
-	public void generateGetterForField(final EclipseNode fieldNode, final ASTNode pos, final AccessLevel level, final boolean lazy) {
+	public void generateGetterForField(EclipseNode fieldNode, ASTNode pos, AccessLevel level, boolean lazy) {
 		if (hasAnnotation(Getter.class, fieldNode)) {
-			// The annotation will make it happen, so we can skip it.
+			//The annotation will make it happen, so we can skip it.
 			return;
 		}
 		
 		createGetterForField(level, fieldNode, fieldNode, pos, false, lazy, Collections.<Annotation>emptyList());
 	}
 	
-	@Override public void handle(final AnnotationValues<Getter> annotation, final Annotation ast, final EclipseNode annotationNode) {
+	public void handle(AnnotationValues<Getter> annotation, Annotation ast, EclipseNode annotationNode) {
 		handleFlagUsage(annotationNode, ConfigurationKeys.GETTER_FLAG_USAGE, "@Getter");
 		
-		final EclipseNode node = annotationNode.up();
-		final Getter annotationInstance = annotation.getInstance();
-		final AccessLevel level = annotationInstance.value();
-		final boolean lazy = annotationInstance.lazy();
+		EclipseNode node = annotationNode.up();
+		Getter annotationInstance = annotation.getInstance();
+		AccessLevel level = annotationInstance.value();
+		boolean lazy = annotationInstance.lazy();
 		if (lazy) handleFlagUsage(annotationNode, ConfigurationKeys.GETTER_LAZY_FLAG_USAGE, "@Getter(lazy=true)");
 		
 		if (level == AccessLevel.NONE) {
@@ -148,7 +148,7 @@ import org.mangosdk.spi.ProviderFor;
 		
 		if (node == null) return;
 		
-		final List<Annotation> onMethod = unboxAndRemoveAnnotationParameter(ast, "onMethod", "@Getter(onMethod=", annotationNode);
+		List<Annotation> onMethod = unboxAndRemoveAnnotationParameter(ast, "onMethod", "@Getter(onMethod=", annotationNode);
 		
 		switch (node.getKind()) {
 		case FIELD:
@@ -164,19 +164,20 @@ import org.mangosdk.spi.ProviderFor;
 		}
 	}
 	
-	public void createGetterForFields(final AccessLevel level, final Collection<EclipseNode> fieldNodes, final EclipseNode errorNode, final ASTNode source, final boolean whineIfExists, final boolean lazy, final List<Annotation> onMethod) {
-		for (final EclipseNode fieldNode : fieldNodes) {
+	public void createGetterForFields(AccessLevel level, Collection<EclipseNode> fieldNodes, EclipseNode errorNode, ASTNode source, boolean whineIfExists, boolean lazy, List<Annotation> onMethod) {
+		for (EclipseNode fieldNode : fieldNodes) {
 			createGetterForField(level, fieldNode, errorNode, source, whineIfExists, lazy, onMethod);
 		}
 	}
 	
-	public void createGetterForField(final AccessLevel level, final EclipseNode fieldNode, final EclipseNode errorNode, final ASTNode source, final boolean whineIfExists, final boolean lazy, final List<Annotation> onMethod) {
+	public void createGetterForField(AccessLevel level,
+			EclipseNode fieldNode, EclipseNode errorNode, ASTNode source, boolean whineIfExists, boolean lazy, List<Annotation> onMethod) {
 		if (fieldNode.getKind() != Kind.FIELD) {
 			errorNode.addError("@Getter is only supported on a class or a field.");
 			return;
 		}
 		
-		final FieldDeclaration field = (FieldDeclaration) fieldNode.get();
+		FieldDeclaration field = (FieldDeclaration) fieldNode.get();
 		if (lazy) {
 			if ((field.modifiers & ClassFileConstants.AccPrivate) == 0 || (field.modifiers & ClassFileConstants.AccFinal) == 0) {
 				errorNode.addError("'lazy' requires the field to be private and final.");
@@ -188,22 +189,18 @@ import org.mangosdk.spi.ProviderFor;
 			}
 		}
 		
-		final TypeReference fieldType = copyType(field.type, source);
-		final boolean isBoolean = isBoolean(fieldType);
-		final String getterName = toGetterName(fieldNode, isBoolean);
-		
-		if (fieldNode.getAst().getFileName().equals("domain/models/fileshare/vo/createuser/CreateUser.java")) {
-			FileLog.log(String.format("getterName=%s @ createGetterForField(..) //file %s", getterName, fieldNode.getAst().getFileName()));
-		}
+		TypeReference fieldType = copyType(field.type, source);
+		boolean isBoolean = isBoolean(fieldType);
+		String getterName = toGetterName(fieldNode, isBoolean);
 		
 		if (getterName == null) {
 			errorNode.addWarning("Not generating getter for this field: It does not fit your @Accessors prefix list.");
 			return;
 		}
 		
-		final int modifier = toEclipseModifier(level) | (field.modifiers & ClassFileConstants.AccStatic);
+		int modifier = toEclipseModifier(level) | (field.modifiers & ClassFileConstants.AccStatic);
 		
-		for (final String altName : toAllGetterNames(fieldNode, isBoolean)) {
+		for (String altName : toAllGetterNames(fieldNode, isBoolean)) {
 			switch (methodExists(altName, fieldNode, false, 0)) {
 			case EXISTS_BY_LOMBOK:
 				return;
@@ -211,25 +208,26 @@ import org.mangosdk.spi.ProviderFor;
 				if (whineIfExists) {
 					String altNameExpl = "";
 					if (!altName.equals(getterName)) altNameExpl = String.format(" (%s)", altName);
-					errorNode.addWarning(String.format("Not generating %s(): A method with that name already exists%s", getterName, altNameExpl));
+					errorNode.addWarning(
+						String.format("Not generating %s(): A method with that name already exists%s", getterName, altNameExpl));
 				}
 				return;
 			default:
 			case NOT_EXISTS:
-				// continue scanning the other alt names.
+				//continue scanning the other alt names.
 			}
 		}
 		
-		final MethodDeclaration method = createGetter((TypeDeclaration) fieldNode.up().get(), fieldNode, getterName, modifier, source, lazy, onMethod);
+		MethodDeclaration method = createGetter((TypeDeclaration) fieldNode.up().get(), fieldNode, getterName, modifier, source, lazy, onMethod);
 		
 		injectMethod(fieldNode.up(), method);
 	}
 	
-	public static Annotation[] findDelegatesAndMarkAsHandled(final EclipseNode fieldNode) {
-		final List<Annotation> delegates = new ArrayList<Annotation>();
-		for (final EclipseNode child : fieldNode.down()) {
+	public static Annotation[] findDelegatesAndMarkAsHandled(EclipseNode fieldNode) {
+		List<Annotation> delegates = new ArrayList<Annotation>();
+		for (EclipseNode child : fieldNode.down()) {
 			if (annotationTypeMatches(Delegate.class, child)) {
-				final Annotation delegate = (Annotation) child.get();
+				Annotation delegate = (Annotation)child.get();
 				PatchDelegate.markHandled(delegate);
 				delegates.add(delegate);
 			}
@@ -237,11 +235,11 @@ import org.mangosdk.spi.ProviderFor;
 		return delegates.toArray(EMPTY_ANNOTATIONS_ARRAY);
 	}
 	
-	public MethodDeclaration createGetter(final TypeDeclaration parent, final EclipseNode fieldNode, final String name, final int modifier, final ASTNode source, final boolean lazy, final List<Annotation> onMethod) {
-		final FieldDeclaration field = (FieldDeclaration) fieldNode.get();
+	public MethodDeclaration createGetter(TypeDeclaration parent, EclipseNode fieldNode, String name, int modifier, ASTNode source, boolean lazy, List<Annotation> onMethod) {
+		FieldDeclaration field = (FieldDeclaration) fieldNode.get();
 		
 		// Remember the type; lazy will change it;
-		final TypeReference returnType = copyType(((FieldDeclaration) fieldNode.get()).type, source);
+		TypeReference returnType = copyType(((FieldDeclaration) fieldNode.get()).type, source);
 		
 		Statement[] statements;
 		if (lazy) {
@@ -250,7 +248,7 @@ import org.mangosdk.spi.ProviderFor;
 			statements = createSimpleGetterBody(source, fieldNode);
 		}
 		
-		final MethodDeclaration method = new MethodDeclaration(parent.compilationResult);
+		MethodDeclaration method = new MethodDeclaration(parent.compilationResult);
 		method.modifiers = modifier;
 		method.returnType = returnType;
 		method.annotations = null;
@@ -266,26 +264,28 @@ import org.mangosdk.spi.ProviderFor;
 		
 		EclipseHandlerUtil.registerCreatedLazyGetter((FieldDeclaration) fieldNode.get(), method.selector, returnType);
 		
-		/*
-		 * Generate annotations that must be put on the generated method, and
-		 * attach them.
-		 */{
+		/* Generate annotations that must  be put on the generated method, and attach them. */ {
 			Annotation[] deprecated = null;
 			if (isFieldDeprecated(fieldNode)) {
-				deprecated = new Annotation[] {generateDeprecatedAnnotation(source)};
+				deprecated = new Annotation[] { generateDeprecatedAnnotation(source) };
 			}
 			
-			method.annotations = copyAnnotations(source, onMethod.toArray(new Annotation[0]), findAnnotations(field, NON_NULL_PATTERN), findAnnotations(field, NULLABLE_PATTERN), findDelegatesAndMarkAsHandled(fieldNode), deprecated);
+			method.annotations = copyAnnotations(source,
+					onMethod.toArray(new Annotation[0]),
+					findAnnotations(field, NON_NULL_PATTERN),
+					findAnnotations(field, NULLABLE_PATTERN),
+					findDelegatesAndMarkAsHandled(fieldNode),
+					deprecated);
 		}
 		
 		method.traverse(new SetGeneratedByVisitor(source), parent.scope);
 		return method;
 	}
-	
-	public Statement[] createSimpleGetterBody(final ASTNode source, final EclipseNode fieldNode) {
-		final FieldDeclaration field = (FieldDeclaration) fieldNode.get();
-		final Expression fieldRef = createFieldAccessor(fieldNode, FieldAccess.ALWAYS_FIELD, source);
-		final Statement returnStatement = new ReturnStatement(fieldRef, field.sourceStart, field.sourceEnd);
+
+	public Statement[] createSimpleGetterBody(ASTNode source, EclipseNode fieldNode) {
+		FieldDeclaration field = (FieldDeclaration) fieldNode.get();
+		Expression fieldRef = createFieldAccessor(fieldNode, FieldAccess.ALWAYS_FIELD, source);
+		Statement returnStatement = new ReturnStatement(fieldRef, field.sourceStart, field.sourceEnd);
 		return new Statement[] {returnStatement};
 	}
 	
@@ -293,7 +293,7 @@ import org.mangosdk.spi.ProviderFor;
 	
 	public static final java.util.Map<String, char[][]> TYPE_MAP;
 	static {
-		final Map<String, char[][]> m = new HashMap<String, char[][]>();
+		Map<String, char[][]> m = new HashMap<String, char[][]>();
 		m.put("int", fromQualifiedName("java.lang.Integer"));
 		m.put("double", fromQualifiedName("java.lang.Double"));
 		m.put("float", fromQualifiedName("java.lang.Float"));
@@ -310,47 +310,56 @@ import org.mangosdk.spi.ProviderFor;
 	
 	private static final int PARENTHESIZED = (1 << ASTNode.ParenthesizedSHIFT) & ASTNode.ParenthesizedMASK;
 	
-	public Statement[] createLazyGetterBody(final ASTNode source, final EclipseNode fieldNode) {
+	public Statement[] createLazyGetterBody(ASTNode source, EclipseNode fieldNode) {
 		/*
-		 * java.lang.Object value = this.fieldName.get(); if (value == null) {
-		 * synchronized (this.fieldName) { value = this.fieldName.get(); if
-		 * (value == null) { final RawValueType actualValue =
-		 * INITIALIZER_EXPRESSION; [IF PRIMITIVE] value = actualValue; [ELSE]
-		 * value = actualValue == null ? this.fieldName : actualValue; [END IF]
-		 * this.fieldName.set(value); } } } [IF PRIMITIVE] return
-		 * (BoxedValueType) value; [ELSE] return (BoxedValueType) (value ==
-		 * this.fieldName ? null : value); [END IF]
-		 */
+		java.lang.Object value = this.fieldName.get();
+		if (value == null) {
+			synchronized (this.fieldName) {
+				value = this.fieldName.get();
+				if (value == null) {
+					final RawValueType actualValue = INITIALIZER_EXPRESSION;
+					[IF PRIMITIVE]
+					value = actualValue;
+					[ELSE]
+					value = actualValue == null ? this.fieldName : actualValue;
+					[END IF]
+					this.fieldName.set(value);
+				}
+			}
+		}
+		[IF PRIMITIVE]
+		return (BoxedValueType) value;
+		[ELSE]
+		return (BoxedValueType) (value == this.fieldName ? null : value);
+		[END IF]
+		*/
 		
-		final FieldDeclaration field = (FieldDeclaration) fieldNode.get();
-		final int pS = source.sourceStart, pE = source.sourceEnd;
-		final long p = (long) pS << 32 | pE;
+		FieldDeclaration field = (FieldDeclaration) fieldNode.get();
+		int pS = source.sourceStart, pE = source.sourceEnd;
+		long p = (long)pS << 32 | pE;
 		
-		final TypeReference rawComponentType = copyType(field.type, source);
+		TypeReference rawComponentType = copyType(field.type, source);
 		TypeReference boxedComponentType = null;
 		boolean isPrimitive = false;
 		if (field.type instanceof SingleTypeReference && !(field.type instanceof ArrayTypeReference)) {
-			final char[][] newType = TYPE_MAP.get(new String(((SingleTypeReference) field.type).token));
+			char[][] newType = TYPE_MAP.get(new String(((SingleTypeReference)field.type).token));
 			if (newType != null) {
 				boxedComponentType = new QualifiedTypeReference(newType, poss(source, 3));
 				isPrimitive = true;
 			}
 		}
 		if (boxedComponentType == null) boxedComponentType = copyType(field.type, source);
-		boxedComponentType.sourceStart = pS;
-		boxedComponentType.sourceEnd = boxedComponentType.statementEnd = pE;
+		boxedComponentType.sourceStart = pS; boxedComponentType.sourceEnd = boxedComponentType.statementEnd = pE;
 		
-		final Statement[] statements = new Statement[3];
+		Statement[] statements = new Statement[3];
 		
-		/* java.lang.Object value = this.fieldName.get(); */{
-			final LocalDeclaration valueDecl = new LocalDeclaration(valueName, pS, pE);
+		/* java.lang.Object value = this.fieldName.get(); */ {
+			LocalDeclaration valueDecl = new LocalDeclaration(valueName, pS, pE);
 			valueDecl.type = new QualifiedTypeReference(TypeConstants.JAVA_LANG_OBJECT, poss(source, 3));
-			valueDecl.type.sourceStart = pS;
-			valueDecl.type.sourceEnd = valueDecl.type.statementEnd = pE;
+			valueDecl.type.sourceStart = pS; valueDecl.type.sourceEnd = valueDecl.type.statementEnd = pE;
 			
-			final MessageSend getter = new MessageSend();
-			getter.sourceStart = pS;
-			getter.statementEnd = getter.sourceEnd = pE;
+			MessageSend getter = new MessageSend();
+			getter.sourceStart = pS; getter.statementEnd = getter.sourceEnd = pE;
 			getter.selector = new char[] {'g', 'e', 't'};
 			getter.receiver = createFieldAccessor(fieldNode, FieldAccess.ALWAYS_FIELD, source);
 			
@@ -359,136 +368,130 @@ import org.mangosdk.spi.ProviderFor;
 		}
 		
 		/*
-		 * if (value == null) { synchronized (this.fieldName) { value =
-		 * this.fieldName.get(); if (value == null) { final ValueType
-		 * actualValue = INITIALIZER_EXPRESSION; [IF PRIMITIVE] value =
-		 * actualValue; [ELSE] value = actualValue == null ? this.fieldName :
-		 * actualValue; [END IF] this.fieldName.set(value); } } }
-		 */{
-			final EqualExpression cond = new EqualExpression(new SingleNameReference(valueName, p), new NullLiteral(pS, pE), BinaryExpression.EQUAL_EQUAL);
-			final Block then = new Block(0);
-			final Expression lock = createFieldAccessor(fieldNode, FieldAccess.ALWAYS_FIELD, source);
-			final Block inner = new Block(0);
+		if (value == null) {
+			synchronized (this.fieldName) {
+				value = this.fieldName.get();
+				if (value == null) { 
+					final ValueType actualValue = INITIALIZER_EXPRESSION;
+					[IF PRIMITIVE]
+					value = actualValue;
+					[ELSE]
+					value = actualValue == null ? this.fieldName : actualValue;
+					[END IF]
+					this.fieldName.set(value);
+				}
+			}
+		}
+		 */ {
+			EqualExpression cond = new EqualExpression(
+					new SingleNameReference(valueName, p), new NullLiteral(pS, pE),
+					BinaryExpression.EQUAL_EQUAL);
+			Block then = new Block(0);
+			Expression lock = createFieldAccessor(fieldNode, FieldAccess.ALWAYS_FIELD, source);
+			Block inner = new Block(0);
 			inner.statements = new Statement[2];
-			/* value = this.fieldName.get(); */{
-				final MessageSend getter = new MessageSend();
-				getter.sourceStart = pS;
-				getter.sourceEnd = getter.statementEnd = pE;
+			/* value = this.fieldName.get(); */ {
+				MessageSend getter = new MessageSend();
+				getter.sourceStart = pS; getter.sourceEnd = getter.statementEnd = pE;
 				getter.selector = new char[] {'g', 'e', 't'};
 				getter.receiver = createFieldAccessor(fieldNode, FieldAccess.ALWAYS_FIELD, source);
-				final Assignment assign = new Assignment(new SingleNameReference(valueName, p), getter, pE);
-				assign.sourceStart = pS;
-				assign.statementEnd = assign.sourceEnd = pE;
+				Assignment assign = new Assignment(new SingleNameReference(valueName, p), getter, pE);
+				assign.sourceStart = pS; assign.statementEnd = assign.sourceEnd = pE;
 				inner.statements[0] = assign;
 			}
-			/* if (value == null) */{
-				final EqualExpression innerCond = new EqualExpression(new SingleNameReference(valueName, p), new NullLiteral(pS, pE), BinaryExpression.EQUAL_EQUAL);
-				innerCond.sourceStart = pS;
-				innerCond.sourceEnd = innerCond.statementEnd = pE;
-				final Block innerThen = new Block(0);
+			/* if (value == null) */ {
+				EqualExpression innerCond = new EqualExpression(
+						new SingleNameReference(valueName, p), new NullLiteral(pS, pE),
+						BinaryExpression.EQUAL_EQUAL);
+				innerCond.sourceStart = pS; innerCond.sourceEnd = innerCond.statementEnd = pE;
+				Block innerThen = new Block(0);
 				innerThen.statements = new Statement[3];
-				/* final ValueType actualValue = INITIALIZER_EXPRESSION */{
-					final LocalDeclaration actualValueDecl = new LocalDeclaration(actualValueName, pS, pE);
+				/* final ValueType actualValue = INITIALIZER_EXPRESSION */ {
+					LocalDeclaration actualValueDecl = new LocalDeclaration(actualValueName, pS, pE);
 					actualValueDecl.type = rawComponentType;
-					actualValueDecl.type.sourceStart = pS;
-					actualValueDecl.type.sourceEnd = actualValueDecl.type.statementEnd = pE;
+					actualValueDecl.type.sourceStart = pS; actualValueDecl.type.sourceEnd = actualValueDecl.type.statementEnd = pE;
 					actualValueDecl.initialization = field.initialization;
 					actualValueDecl.modifiers = ClassFileConstants.AccFinal;
 					innerThen.statements[0] = actualValueDecl;
 				}
-				/* [IF PRIMITIVE] value = actualValue; */{
+				/* [IF PRIMITIVE] value = actualValue; */ {
 					if (isPrimitive) {
-						final Assignment innerAssign = new Assignment(new SingleNameReference(valueName, p), new SingleNameReference(actualValueName, p), pE);
-						innerAssign.sourceStart = pS;
-						innerAssign.statementEnd = innerAssign.sourceEnd = pE;
+						Assignment innerAssign = new Assignment(new SingleNameReference(valueName, p), new SingleNameReference(actualValueName, p), pE);
+						innerAssign.sourceStart = pS; innerAssign.statementEnd = innerAssign.sourceEnd = pE;
 						innerThen.statements[1] = innerAssign;
 					}
 				}
-				/*
-				 * [ELSE] value = actualValue == null ? this.fieldName :
-				 * actualValue;
-				 */{
+				/* [ELSE] value = actualValue == null ? this.fieldName : actualValue; */ {
 					if (!isPrimitive) {
-						final EqualExpression avIsNull = new EqualExpression(new SingleNameReference(actualValueName, p), new NullLiteral(pS, pE), BinaryExpression.EQUAL_EQUAL);
-						avIsNull.sourceStart = pS;
-						avIsNull.sourceEnd = avIsNull.statementEnd = pE;
-						final Expression fieldRef = createFieldAccessor(fieldNode, FieldAccess.ALWAYS_FIELD, source);
-						final ConditionalExpression ternary = new ConditionalExpression(avIsNull, fieldRef, new SingleNameReference(actualValueName, p));
-						ternary.sourceStart = pS;
-						ternary.sourceEnd = ternary.statementEnd = pE;
-						final Assignment innerAssign = new Assignment(new SingleNameReference(valueName, p), ternary, pE);
-						innerAssign.sourceStart = pS;
-						innerAssign.statementEnd = innerAssign.sourceEnd = pE;
+						EqualExpression avIsNull = new EqualExpression(
+								new SingleNameReference(actualValueName, p), new NullLiteral(pS, pE),
+								BinaryExpression.EQUAL_EQUAL);
+						avIsNull.sourceStart = pS; avIsNull.sourceEnd = avIsNull.statementEnd = pE;
+						Expression fieldRef = createFieldAccessor(fieldNode, FieldAccess.ALWAYS_FIELD, source);
+						ConditionalExpression ternary = new ConditionalExpression(avIsNull, fieldRef, new SingleNameReference(actualValueName, p));
+						ternary.sourceStart = pS; ternary.sourceEnd = ternary.statementEnd = pE;
+						Assignment innerAssign = new Assignment(new SingleNameReference(valueName, p), ternary, pE);
+						innerAssign.sourceStart = pS; innerAssign.statementEnd = innerAssign.sourceEnd = pE;
 						innerThen.statements[1] = innerAssign;
 					}
 				}
 				
-				/* this.fieldName.set(value); */{
-					final MessageSend setter = new MessageSend();
-					setter.sourceStart = pS;
-					setter.sourceEnd = setter.statementEnd = pE;
+				/* this.fieldName.set(value); */ {
+					MessageSend setter = new MessageSend();
+					setter.sourceStart = pS; setter.sourceEnd = setter.statementEnd =  pE;
 					setter.receiver = createFieldAccessor(fieldNode, FieldAccess.ALWAYS_FIELD, source);
-					setter.selector = new char[] {'s', 'e', 't'};
-					setter.arguments = new Expression[] {new SingleNameReference(valueName, p)};
+					setter.selector = new char[] { 's', 'e', 't' };
+					setter.arguments = new Expression[] {
+							new SingleNameReference(valueName, p)};
 					innerThen.statements[2] = setter;
 				}
 				
-				final IfStatement innerIf = new IfStatement(innerCond, innerThen, pS, pE);
+				IfStatement innerIf = new IfStatement(innerCond, innerThen, pS, pE);
 				inner.statements[1] = innerIf;
 			}
 			
-			final SynchronizedStatement sync = new SynchronizedStatement(lock, inner, pS, pE);
+			SynchronizedStatement sync = new SynchronizedStatement(lock, inner, pS, pE);
 			then.statements = new Statement[] {sync};
 			
-			final IfStatement ifStatement = new IfStatement(cond, then, pS, pE);
+			IfStatement ifStatement = new IfStatement(cond, then, pS, pE);
 			statements[1] = ifStatement;
 		}
 		
-		/* [IF PRIMITIVE] return (BoxedValueType)value; */{
+		/* [IF PRIMITIVE] return (BoxedValueType)value; */ {
 			if (isPrimitive) {
-				final CastExpression cast = makeCastExpression(new SingleNameReference(valueName, p), boxedComponentType, source);
+				CastExpression cast = makeCastExpression(new SingleNameReference(valueName, p), boxedComponentType, source);
 				statements[2] = new ReturnStatement(cast, pS, pE);
 			}
 		}
-		/*
-		 * [ELSE] return (BoxedValueType)(value == this.fieldName ? null :
-		 * value);
-		 */{
+		/* [ELSE] return (BoxedValueType)(value == this.fieldName ? null : value); */ {
 			if (!isPrimitive) {
-				final EqualExpression vIsThisFieldName = new EqualExpression(new SingleNameReference(valueName, p), createFieldAccessor(fieldNode, FieldAccess.ALWAYS_FIELD, source), BinaryExpression.EQUAL_EQUAL);
-				vIsThisFieldName.sourceStart = pS;
-				vIsThisFieldName.sourceEnd = vIsThisFieldName.statementEnd = pE;
-				final ConditionalExpression ternary = new ConditionalExpression(vIsThisFieldName, new NullLiteral(pS, pE), new SingleNameReference(valueName, p));
-				ternary.sourceStart = pS;
-				ternary.sourceEnd = ternary.statementEnd = pE;
+				EqualExpression vIsThisFieldName = new EqualExpression(
+						new SingleNameReference(valueName, p), createFieldAccessor(fieldNode, FieldAccess.ALWAYS_FIELD, source),
+						BinaryExpression.EQUAL_EQUAL);
+				vIsThisFieldName.sourceStart = pS; vIsThisFieldName.sourceEnd = vIsThisFieldName.statementEnd = pE;
+				ConditionalExpression ternary = new ConditionalExpression(vIsThisFieldName, new NullLiteral(pS, pE), new SingleNameReference(valueName, p));
+				ternary.sourceStart = pS; ternary.sourceEnd = ternary.statementEnd = pE;
 				ternary.bits |= PARENTHESIZED;
-				final CastExpression cast = makeCastExpression(ternary, boxedComponentType, source);
+				CastExpression cast = makeCastExpression(ternary, boxedComponentType, source);
 				statements[2] = new ReturnStatement(cast, pS, pE);
 			}
 		}
 		
 		// update the field type and init last
-		
-		/*
-		 * private final
-		 * java.util.concurrent.atomic.AtomicReference<java.lang.Object>
-		 * fieldName = new
-		 * java.util.concurrent.atomic.AtomicReference<java.lang.Object>();
-		 */{
-			final TypeReference innerType = new QualifiedTypeReference(TypeConstants.JAVA_LANG_OBJECT, poss(source, 3));
-			final TypeReference[][] typeParams = new TypeReference[5][];
+			
+		/* 	private final java.util.concurrent.atomic.AtomicReference<java.lang.Object> fieldName = new java.util.concurrent.atomic.AtomicReference<java.lang.Object>(); */ {
+			TypeReference innerType = new QualifiedTypeReference(TypeConstants.JAVA_LANG_OBJECT, poss(source, 3));
+			TypeReference[][] typeParams = new TypeReference[5][];
 			typeParams[4] = new TypeReference[] {innerType};
-			final TypeReference type = new ParameterizedQualifiedTypeReference(AR, typeParams, 0, poss(source, 5));
+			TypeReference type = new ParameterizedQualifiedTypeReference(AR, typeParams, 0, poss(source, 5));
 			
 			// Some magic here
-			type.sourceStart = -1;
-			type.sourceEnd = -2;
+			type.sourceStart = -1; type.sourceEnd = -2;
 			
 			field.type = type;
-			final AllocationExpression init = new AllocationExpression();
+			AllocationExpression init = new AllocationExpression();
 			// Some magic here
-			init.sourceStart = field.initialization.sourceStart;
-			init.sourceEnd = init.statementEnd = field.initialization.sourceEnd;
+			init.sourceStart = field.initialization.sourceStart; init.sourceEnd = init.statementEnd = field.initialization.sourceEnd;
 			init.type = copyType(type, source);
 			field.initialization = init;
 		}
