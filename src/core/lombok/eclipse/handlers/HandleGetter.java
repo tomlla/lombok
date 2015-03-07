@@ -38,6 +38,7 @@ import lombok.experimental.Delegate;
 import lombok.Getter;
 import lombok.core.AST.Kind;
 import lombok.core.AnnotationValues;
+import lombok.core.debug.FileLog;
 import lombok.eclipse.EclipseAnnotationHandler;
 import lombok.eclipse.EclipseNode;
 import lombok.eclipse.agent.PatchDelegate;
@@ -192,6 +193,10 @@ public class HandleGetter extends EclipseAnnotationHandler<Getter> {
 		TypeReference fieldType = copyType(field.type, source);
 		boolean isBoolean = isBoolean(fieldType);
 		String getterName = toGetterName(fieldNode, isBoolean);
+		
+		if (fieldNode.getAst().getFileName().equals("domain/models/fileshare/vo/createuser/CreateUser.java")) {
+			FileLog.log(String.format("getterName=%s @ createGetterForField(..) //file %s", getterName, fieldNode.getAst().getFileName()));
+		}
 		
 		if (getterName == null) {
 			errorNode.addWarning("Not generating getter for this field: It does not fit your @Accessors prefix list.");

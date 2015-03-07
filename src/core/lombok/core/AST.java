@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.Map;
 
 import lombok.core.configuration.ConfigurationKey;
+import lombok.core.debug.FileLog;
 import lombok.core.debug.HistogramTracker;
 
 /**
@@ -423,7 +424,11 @@ public abstract class AST<A extends AST<A, L, N>, L extends LombokNode<A, L, N>,
 	public final <T> T readConfiguration(ConfigurationKey<T> key) {
 		long start = configTracker == null ? 0L : configTracker.start();
 		try {
-			return LombokConfiguration.read(key, this);
+			final T read = LombokConfiguration.read(key, this);
+			if (key.getKeyName().equals("lombok.accessors.fluent")) {
+				FileLog.log("LombokConfiguration.read is not throw  // key: " + key.getKeyName());
+			}
+			return read;
 		} finally {
 			if (configTracker != null) configTracker.end(start);
 		}

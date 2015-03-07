@@ -27,6 +27,7 @@ import java.util.List;
 
 import lombok.core.configuration.ConfigurationSource.ListModification;
 import lombok.core.configuration.ConfigurationSource.Result;
+import lombok.core.debug.FileLog;
 
 public class BubblingConfigurationResolver implements ConfigurationResolver {
 	
@@ -41,8 +42,11 @@ public class BubblingConfigurationResolver implements ConfigurationResolver {
 	public <T> T resolve(ConfigurationKey<T> key) {
 		boolean isList = key.getType().isList();
 		List<List<ListModification>> listModificationsList = null;
-		for (ConfigurationSource source : sources) {
-			Result result = source.resolve(key);
+		for (final ConfigurationSource source : sources) {
+			final Result result = source.resolve(key);
+			if (result == null) {
+				FileLog.log("source.resolve(key) result is Null");
+			}
 			if (result == null) continue;
 			if (isList) {
 				if (listModificationsList == null) {

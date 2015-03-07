@@ -46,6 +46,7 @@ import lombok.core.AnnotationValues;
 import lombok.core.AnnotationValues.AnnotationValue;
 import lombok.core.TypeResolver;
 import lombok.core.configuration.NullCheckExceptionType;
+import lombok.core.debug.FileLog;
 import lombok.core.debug.ProblemReporter;
 import lombok.core.handlers.HandlerUtil;
 import lombok.eclipse.Eclipse;
@@ -973,6 +974,10 @@ public class EclipseHandlerUtil {
 	 * Convenient wrapper around {@link TransformationsUtil#toGetterName(lombok.core.AnnotationValues, CharSequence, boolean)}.
 	 */
 	public static String toGetterName(EclipseNode field, boolean isBoolean) {
+		final String fileName = field.getAst().getFileName();
+		if (fileName.equals("domain/models/fileshare/vo/createuser/CreateUser.java")) {
+			FileLog.log("-- called toGetterName(EclipseNode , boolean)  //field.getAst.filename: " + fileName);
+		}
 		return HandlerUtil.toGetterName(field.getAst(), getAccessorsForField(field), field.getName(), isBoolean);
 	}
 	

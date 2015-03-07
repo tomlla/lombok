@@ -29,6 +29,7 @@ import lombok.core.configuration.ConfigurationProblemReporter;
 import lombok.core.configuration.ConfigurationResolver;
 import lombok.core.configuration.ConfigurationResolverFactory;
 import lombok.core.configuration.FileSystemSourceCache;
+import lombok.core.debug.FileLog;
 
 public class LombokConfiguration {
 	private static final ConfigurationResolver NULL_RESOLVER = new ConfigurationResolver() {
